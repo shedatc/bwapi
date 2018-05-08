@@ -480,6 +480,8 @@ struct game_setup_helper_t {
     vars.left_game = false;
     vars.is_multi_player = true;
 
+    if ( vars.set_map_filename.empty() )
+      error("No map filename. Maybe the 'map' parameter is missing from bwapi-data/bwapi.ini.");
     auto& filename = vars.set_map_filename;
 
     auto& global_st = *st.global;
