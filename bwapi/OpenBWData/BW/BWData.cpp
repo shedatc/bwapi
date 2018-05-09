@@ -169,16 +169,18 @@ struct ui_wrapper {
   int screen_pos_x = 0;
   int screen_pos_y = 0;
   std::function<void(uint8_t*, size_t)> on_draw;
+  ui_functions ui;
+
   bwgame::game_player get_player(bwgame::state& st) {
     bwgame::game_player player;
     player.set_st(st);
     return player;
   }
-  ui_wrapper(bwgame::state& st, std::string mpq_path) {
+
+  ui_wrapper(bwgame::state& st, std::string mpq_path) : ui( std::move( get_player(st) ) ) {
 
     ui_thread = ui_thread_t([this, player = get_player(st), mpq_path]() mutable {
       std::unique_lock<std::mutex> l(mut);
-      ui_functions ui(std::move(player));
 
       ui.exit_on_close = false;
       ui.global_volume = 0;
@@ -194,13 +196,13 @@ struct ui_wrapper {
       ui.resize(screen_width, screen_height);
       ui.screen_pos = {(int)ui.game_st.map_width / 2 - (int)screen_width / 2, (int)ui.game_st.map_height / 2 - (int)screen_height / 2};
 
-      ui.on_draw = [this, &ui](uint8_t* data, size_t data_pitch) {
+      ui.on_draw = [this](uint8_t* data, size_t data_pitch) {
         this->m_screen_buffer = data;
-        //this->screen_width = ui.screen_width;
-        this->screen_width = data_pitch;
-        this->screen_height = ui.screen_height;
-        this->screen_pos_x = ui.screen_pos.x;
-        this->screen_pos_y = ui.screen_pos.y;
+        // this->screen_width    = this->ui.screen_width;
+        this->screen_width    = data_pitch;
+        this->screen_height   = this->ui.screen_height;
+        this->screen_pos_x    = this->ui.screen_pos.x;
+        this->screen_pos_y    = this->ui.screen_pos.y;
         this->on_draw(data, data_pitch);
       };
 
@@ -824,7 +826,8 @@ struct openbwapi_impl {
         if (replay_funcs.is_done()) {
           game_setup_helper.leave_game();
         } else {
-          replay_funcs.next_frame();
+          if (!ui->ui.is_paused)
+            replay_funcs.next_frame();
         }
       } else {
         game_setup_helper.next_frame();
